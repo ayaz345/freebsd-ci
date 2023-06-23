@@ -5,8 +5,7 @@ import base64
 import json
 import os
 
-x = {}
-x['job_name'] = os.environ['JOB_NAME']
+x = {'job_name': os.environ['JOB_NAME']}
 if os.environ.get('GIT_COMMIT', False):
     x['commit'] = os.environ['GIT_COMMIT']
 else:
@@ -25,12 +24,11 @@ else:
 
 username = os.environ['ARTIFACT_CRED_USER']
 password = os.environ['ARTIFACT_CRED_PASS']
-key = base64.b64encode(bytes(username + ':' + password, 'ascii')).decode('ascii')
+key = base64.b64encode(bytes(f'{username}:{password}', 'ascii')).decode(
+    'ascii'
+)
 
-headers = {}
-headers['Authorization'] = 'Basic {}'.format(key)
-headers['Content-Type'] = 'application/json'
-
+headers = {'Authorization': f'Basic {key}', 'Content-Type': 'application/json'}
 try:
     connections.request('POST', '/', json_req, headers)
     response = connections.getresponse()

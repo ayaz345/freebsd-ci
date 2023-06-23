@@ -49,7 +49,7 @@ sentinel_file = None
 
 def usage(argv):
     print("Usage:")
-    print("    %s -f [JSON config file]" % argv[0])
+    print(f"    {argv[0]} -f [JSON config file]")
 
 
 def main(argv):
@@ -72,9 +72,8 @@ def main(argv):
         usage(argv)
         sys.exit(1)
 
-    config_file = open(test_config_file, "r")
-    test_config = json.load(config_file)
-    config_file.close()
+    with open(test_config_file, "r") as config_file:
+        test_config = json.load(config_file)
     checkpreReqBhyve()
     runTest()
 
@@ -83,7 +82,7 @@ def runTest():
     global test_config_file
 
     home = os.path.expanduser("~")
-    known_hosts = "%s/.ssh/known_hosts" % (home)
+    known_hosts = f"{home}/.ssh/known_hosts"
 
     # Create the bridge interface if it does not exist.
     # Configure the bridge with an IP address.
@@ -93,9 +92,16 @@ def runTest():
         ret = subprocess.call(["ifconfig", test_config['bridge'], "create"])
         if ret != 0:
             sys.exit(ret)
-        ret = subprocess.call(["ifconfig", test_config['bridge'], "inet", "%s/24" % test_config['bridge_ip']])
-        if ret != 0:
-            sys.exit(ret)
+        ret = subprocess.call(
+            [
+                "ifconfig",
+                test_config['bridge'],
+                "inet",
+                f"{test_config['bridge_ip']}/24",
+            ]
+        )
+    if ret != 0:
+        sys.exit(ret)
 
     # Create the tap interface if it does not exist.
     # Add the tap interface to the bridge.
@@ -105,29 +111,21 @@ def runTest():
         if ret != 0:
             sys.exit(ret)
         ret = subprocess.call(["ifconfig", test_config['bridge'], "addm", test_config['tap']])
-        if ret != 0:
-            sys.exit(ret)
+    if ret != 0:
+        sys.exit(ret)
 
-    cmd = "bhyvectl --destroy --vm=%s" % test_config['vm_name']
+    cmd = f"bhyvectl --destroy --vm={test_config['vm_name']}"
     print("")
     ret = os.system(cmd)
 
-    cmd = "bhyveload -m %s -d %s %s" % \
-          (test_config['ram'], test_config['disks'][0], test_config['vm_name'])
+    cmd = f"bhyveload -m {test_config['ram']} -d {test_config['disks'][0]} {test_config['vm_name']}"
     print(cmd)
     child = pexpect.spawn(cmd)
     child.logfile = sys.stdout
     child.expect(pexpect.EOF, timeout=120)
 
-    macaddress = ""
-    if "mac" in test_config:
-        macaddress = ",mac=%s" % test_config['mac']
-
-    cmd = "bhyve -c 2 -m %s -AI -H -P -s 0:0,hostbridge " \
-          "-s 1:0,lpc -s 2:0,virtio-net,%s%s -s 3:0,ahci-hd,%s " \
-          "-l com1,stdio %s"  % \
-         (test_config['ram'], test_config['tap'], macaddress, \
-          test_config['disks'][0], test_config['vm_name'])
+    macaddress = f",mac={test_config['mac']}" if "mac" in test_config else ""
+    cmd = f"bhyve -c 2 -m {test_config['ram']} -AI -H -P -s 0:0,hostbridge -s 1:0,lpc -s 2:0,virtio-net,{test_config['tap']}{macaddress} -s 3:0,ahci-hd,{test_config['disks'][0]} -l com1,stdio {test_config['vm_name']}"
     print(cmd)
     child2 = pexpect.spawn(cmd)
     child2.logfile = sys.stdout
@@ -146,7 +144,7 @@ def runTest():
     child2.expect(prompt)
     child2.expect(prompt)
 
-    child2.sendline("ifconfig %s | grep 'inet '" % (test_config['interface']))
+    child2.sendline(f"ifconfig {test_config['interface']} | grep 'inet '")
     child2.before = None
     child2.after = None
     i = child2.expect(['       inet ', prompt, pexpect.EOF])
@@ -158,7 +156,7 @@ def runTest():
             # matched "netmask 0xffffffe0 broadcast 8.8.178.223"
             ip_address = child2.before.strip()
             print("\nFound IP address: %s" % (ip_address))
-            subprocess.call(["sed", "-i", "", "-e", "/%s/d" % (ip_address), known_hosts])
+            subprocess.call(["sed", "-i", "", "-e", f"/{ip_address}/d", known_hosts])
 
     if ip_address is None:
         print("\nDid not find IP address for %s" %  (test_config['interface']))
@@ -200,7 +198,7 @@ def checkpreReqBhyve():
         raise EnvironmentError("missing if_tap.ko")
 
 def cleanup():
-    os.system("rm -f %s" % (sentinel_file))
+    os.system(f"rm -f {sentinel_file}")
 
 if __name__ == "__main__":
     atexit.register(cleanup)

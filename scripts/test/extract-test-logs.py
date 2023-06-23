@@ -47,7 +47,7 @@ md = ""
 
 def usage(argv):
     print("Usage:")
-    print("    %s -f [JSON config file]" % argv[0])
+    print(f"    {argv[0]} -f [JSON config file]")
 
 
 def main(argv):
@@ -74,26 +74,23 @@ def main(argv):
         usage(argv)
         sys.exit(1)
 
-    config_file = open(test_config_file, "r")
-    test_config = json.load(config_file)
-    config_file.close()
-
+    with open(test_config_file, "r") as config_file:
+        test_config = json.load(config_file)
     md = subprocess.check_output(["mdconfig", "-a", "-f", test_config['disks'][0]])
     md = md.strip()
     temp_dir = tempfile.mkdtemp()
-    cmd = ["mount", "/dev/%s" % (md), temp_dir]
+    cmd = ["mount", f"/dev/{md}", temp_dir]
     print(" ".join(cmd))
     ret = subprocess.call(cmd)
     if ret != 0:
         sys.exit(ret)
 
-    cmd = "cp %s/usr/tests/*.xml %s/usr/tests/*.txt ." \
-           % (temp_dir, temp_dir)
+    cmd = f"cp {temp_dir}/usr/tests/*.xml {temp_dir}/usr/tests/*.txt ."
     subprocess.call(cmd, shell=True)
 
 def cleanup():
     global md
-    subprocess.call("rm -f %s" % (sentinel_file), shell=True)
+    subprocess.call(f"rm -f {sentinel_file}", shell=True)
     if temp_dir is not None:
         cmd = ["umount", temp_dir]
         print(" ".join(cmd))
